@@ -566,9 +566,98 @@ requestAnimationFrame(gameLoop);
 
 window.addEventListener('resize', applyCamera);
 
+/* ====================== AMBIENT AUDIO ====================== */
+let audioCtx=null, birdGain=null, musicGain=null, birdTimer=null, musicTimer=null;
+const AMBIENT_SCALE=[261.63,293.66,329.63,392.00,440.00];
+
+function playBirdChirp(){
+  const now=audioCtx.currentTime;
+  const osc=audioCtx.createOscillator();
+  osc.type='sine';
+  const base=2200+Math.random()*1800;
+  osc.frequency.setValueAtTime(base,now);
+  osc.frequency.exponentialRampToValueAtTime(base*1.3,now+0.05);
+  osc.frequency.exponentialRampToValueAtTime(base*0.8,now+0.15);
+  const g=audioCtx.createGain();
+  g.gain.setValueAtTime(0,now);
+  g.gain.linearRampToValueAtTime(0.18,now+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,now+0.18);
+  osc.connect(g);
+  g.connect(birdGain);
+  osc.start(now);
+  osc.stop(now+0.2);
+  if(Math.random()<0.5){
+    const osc2=audioCtx.createOscillator();
+    osc2.type='sine';
+    const base2=base*1.1;
+    osc2.frequency.setValueAtTime(base2,now+0.22);
+    osc2.frequency.exponentialRampToValueAtTime(base2*0.85,now+0.32);
+    const g2=audioCtx.createGain();
+    g2.gain.setValueAtTime(0,now+0.22);
+    g2.gain.linearRampToValueAtTime(0.15,now+0.24);
+    g2.gain.exponentialRampToValueAtTime(0.0001,now+0.38);
+    osc2.connect(g2);
+    g2.connect(birdGain);
+    osc2.start(now+0.22);
+    osc2.stop(now+0.4);
+  }
+}
+
+function scheduleBirds(){
+  if(!audioCtx) return;
+  playBirdChirp();
+  birdTimer=setTimeout(scheduleBirds,800+Math.random()*2500);
+}
+
+function playGong(freq,time,vol,dur){
+  const osc1=audioCtx.createOscillator();
+  osc1.type='sine';
+  osc1.frequency.value=freq;
+  const osc2=audioCtx.createOscillator();
+  osc2.type='sine';
+  osc2.frequency.value=freq*2.01;
+  const g=audioCtx.createGain();
+  g.gain.setValueAtTime(0,time);
+  g.gain.linearRampToValueAtTime(vol,time+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,time+dur);
+  const g2=audioCtx.createGain();
+  g2.gain.value=0.3;
+  osc1.connect(g);
+  osc2.connect(g2);
+  g2.connect(g);
+  g.connect(musicGain);
+  osc1.start(time);
+  osc1.stop(time+dur);
+  osc2.start(time);
+  osc2.stop(time+dur);
+}
+
+function scheduleMusic(){
+  if(!audioCtx) return;
+  const now=audioCtx.currentTime;
+  const note=AMBIENT_SCALE[Math.floor(Math.random()*AMBIENT_SCALE.length)];
+  playGong(note,now+0.05,0.15,2.2);
+  if(Math.random()<0.3) playGong(note*2,now+0.05,0.08,1.8);
+  musicTimer=setTimeout(scheduleMusic,1100+Math.random()*900);
+}
+
+function startAmbience(){
+  if(audioCtx) return;
+  audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  birdGain=audioCtx.createGain();
+  birdGain.gain.value=0.5;
+  birdGain.connect(audioCtx.destination);
+  musicGain=audioCtx.createGain();
+  musicGain.gain.value=0.4;
+  musicGain.connect(audioCtx.destination);
+  scheduleBirds();
+  scheduleMusic();
+}
+
 /* ====================== INTRO ====================== */
 document.getElementById('introBtn').onclick = ()=>{
   document.getElementById('intro').classList.add('hidden');
+  startAmbience();
 };
 </script>
 </body>
